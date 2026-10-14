@@ -1,49 +1,34 @@
 # Caddy with Cloudflare DNS
 
-Caddy image built from the official Caddy Docker images with
-[`caddy-dns/cloudflare`](https://github.com/caddy-dns/cloudflare).
+Official Caddy Docker image with [`caddy-dns/cloudflare`](https://github.com/caddy-dns/cloudflare), built for `linux/amd64`.
 
-```text
-ghcr.io/konstantin-spiess/caddy-cloudflare:stable
+## Usage
+
+Use a combined version tag in your Compose service:
+
+```yaml
+image: ghcr.io/konstantin-spiess/caddy-cloudflare:2.11.7-cf.0.2.4
 ```
 
-Each build also publishes a readable component-version tag, for example:
+This means **Caddy 2.11.7 + Cloudflare module 0.2.4**. Mount your configuration at `/etc/caddy` and persist `/data` and `/config`. The image contains no site configuration, credentials or certificates.
 
-```text
-ghcr.io/konstantin-spiess/caddy-cloudflare:2.11.7-cf.0.2.4
-```
-
-The first three numbers identify Caddy; `cf.0.2.4` identifies the Cloudflare
-module. A module-only update changes this to e.g. `2.11.7-cf.0.2.5`.
-
-The image contains no site configuration, credentials or certificates.
-Mount your own configuration and persistent Caddy state at deployment time.
-The current build targets `linux/amd64`.
+| Tag | Purpose |
+| --- | --- |
+| `<caddy>-cf.<module>` | Readable component versions |
+| `stable` | Latest tested build |
+| `<caddy>-cf<module>-build<run>-<attempt>` | Retained build for rollback |
 
 ## Updates
 
-GitHub Actions checks published stable Caddy releases and stable Cloudflare
-module tags independently, daily at 06:23 UTC. When either version changes, it
-builds a new image. Prereleases and draft releases are excluded.
+GitHub Actions checks stable Caddy releases and Cloudflare module tags independently each day. New versions and pushes to `main` trigger a build. Before publishing, it checks the actual versions, validates a minimal configuration and tests an HTTP response. Validate your own configuration before deployment; publishing does not update your server.
 
-Before publishing, the workflow checks the actual Caddy and module versions,
-validates a minimal configuration and tests an HTTP response in an isolated
-container. These checks do not validate a user's production configuration.
+For base-image updates with unchanged component versions, run the workflow manually with **force** enabled. The daily check detects component-version changes only. Version tags may be rebuilt; use a unique build tag or digest to pin an exact image.
 
-Each successful build receives a unique tag:
+GitHub may delay scheduled runs or disable them after 60 days of repository inactivity; see [scheduled workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
-```text
-<caddy>-cf<module>-build<workflow-run-id>-<attempt>
-```
+## WUD
 
-Only after the checks pass is `stable` updated. Previous build tags are retained
-as deployment rollback targets. The combined component versions are also stored
-in the OCI label `org.opencontainers.image.version` and the workflow summary.
-
-For readable updates in [WUD](https://getwud.app/docs/configuration/watchers/labels/),
-deploy a component-version tag and restrict candidate tags to this format.
-The following are service labels in Docker Compose; `$$` escapes Compose's
-interpolation and becomes a single `$` in the actual container label:
+For WUD 9.4.1, use the combined version tag above with these Compose service labels:
 
 ```yaml
 labels:
@@ -52,37 +37,15 @@ labels:
   wud.watch.digest: "true"
 ```
 
-This excludes `stable` and the separate build tags from version candidates.
-WUD 9.4.1 preserves the suffix and compares these version tags numerically;
-no tag transformation is needed. The `-cf.` suffix is formally a SemVer
-prerelease field, but the upstream selector includes only stable releases/tags;
-it does not mean this image contains a Caddy prerelease. WUD may classify a
-module-only update as a prerelease change; this is not a Caddy patch update.
-Digest monitoring remains useful for forced rebuilds of the same component
-versions, for example to refresh base images. `stable` remains available as an
-alternative mutable alias. Building and publishing does not install anything
-on a server. Configure the existing WUD triggers separately before deployment.
+The filter accepts component-version tags only; `$$` escapes Compose interpolation. Digest watching also detects rebuilds with unchanged versions. Configure your WUD update triggers separately.
 
-Changes on `main` rebuild the image. To refresh base images without changing
-component versions, start the workflow manually with `force` enabled. The daily
-version check alone does not detect base-image-only changes.
-
-Scheduled workflows can be delayed. GitHub may disable scheduled workflows in
-public repositories after 60 days without repository activity; see
-[GitHub's schedule documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
-Manual execution remains available.
+WUD can classify a module-only update as a SemVer prerelease change because of the `-cf.` suffix; the selected upstream versions are stable.
 
 ## Build locally
 
 ```bash
 docker build --pull \
   --build-arg CADDY_VERSION=2.11.7 \
-  --build-arg CLOUDFLARE_VERSION=v0.2.2 \
+  --build-arg CLOUDFLARE_VERSION=v0.2.4 \
   --tag caddy-cloudflare:local .
 ```
-
-## Package visibility
-
-New GHCR packages are initially private. To allow anonymous downloads, change
-the package's visibility to public separately from the repository's visibility.
-See [GitHub Container Registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
