@@ -1,0 +1,39 @@
+name: Build Caddy with Cloudflare DNS
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild even if the Caddy and module versions are unchanged
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: caddy-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Select upstream versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ci/versions.py
+      - name: Build, test and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE_REBUILD: ${{ inputs.force || github.event_name == 'push' }}
+        run: bash ci/publish.sh
