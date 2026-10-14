@@ -3,6 +3,7 @@ set -euo pipefail
 
 image="ghcr.io/${GITHUB_REPOSITORY,,}"
 versions="${CADDY_VERSION}-cf${CLOUDFLARE_VERSION#v}"
+version_tag="${CADDY_VERSION}-cf.${CLOUDFLARE_VERSION#v}"
 build_tag="${versions}-build${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 candidate="local/caddy-ci:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 smoke_container="caddy-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -71,7 +72,9 @@ fi
 # Publish stable only after every check, retaining a unique tag for rollback.
 docker tag "$candidate" "$image:$build_tag"
 docker push "$image:$build_tag"
+docker tag "$candidate" "$image:$version_tag"
+docker push "$image:$version_tag"
 docker tag "$candidate" "$image:stable"
 docker push "$image:stable"
-printf 'Published `%s:stable`\n\nVersions: `%s`\n\nRetained tag: `%s:%s`\n' \
-    "$image" "$versions" "$image" "$build_tag" >> "$GITHUB_STEP_SUMMARY"
+printf 'Published `%s:%s` and `%s:stable`\n\nVersions: `%s`\n\nRetained tag: `%s:%s`\n' \
+    "$image" "$version_tag" "$image" "$versions" "$image" "$build_tag" >> "$GITHUB_STEP_SUMMARY"
