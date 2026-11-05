@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -n "${MISSING_CADDY_BASE_IMAGES:-}" ]]; then
+    printf 'Waiting for upstream Caddy images: %s. Build deferred to a later run.\n' \
+        "$MISSING_CADDY_BASE_IMAGES" | tee -a "$GITHUB_STEP_SUMMARY"
+    exit 0
+fi
+
 image="ghcr.io/${GITHUB_REPOSITORY,,}"
 versions="${CADDY_VERSION}-cf${CLOUDFLARE_VERSION#v}"
 version_tag="${CADDY_VERSION}-cf.${CLOUDFLARE_VERSION#v}"
